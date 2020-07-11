@@ -10,7 +10,7 @@ interface State {
 export class PixiWorkbench extends Component<{}, State> {
 	
 	state = {
-		pixiApp: new PIXI.Application({ resizeTo: window }),
+		pixiApp: new PIXI.Application({ width: window.innerWidth - 20, height: innerHeight - 20 }),
 		workbenchApp: new WorkbenchApplication()
 	};
 
