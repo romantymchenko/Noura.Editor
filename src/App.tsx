@@ -5,14 +5,14 @@ import "antd/dist/antd.less";
 import { PixiWorkbench } from "./pages/PixiWorkbench";
 
 class App extends Component<any, any> {
-    
-    render() {
-        return (
-            <section id="App">
-                <PixiWorkbench />
-            </section>
-        );
-    }
+	
+	render() {
+		return (
+			<section id="App">
+				<PixiWorkbench />
+			</section>
+		);
+	}
 }
 
 var rootDiv = document.body.appendChild(document.createElement("div"));
