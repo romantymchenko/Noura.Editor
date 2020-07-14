@@ -4,7 +4,7 @@ import "./app.css";
 import "antd/dist/antd.less";
 import { PixiWorkbench } from "./pages/PixiWorkbench";
 
-class App extends Component<any, any> {
+class App extends Component<{}, {}> {
 	
 	render() {
 		return (
