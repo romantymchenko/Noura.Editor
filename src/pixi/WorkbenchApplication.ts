@@ -2,19 +2,22 @@ import * as PIXI from "pixi.js";
 import { Grid } from "./components/Grid";
 import { ApplicationFunction } from "../models/ApplicationFunction";
 import { NodeBlock } from "./components/NodeBlock";
+import { IRenderable } from "./components/IRenderable";
+import { CursorFeedbackType } from "../models/CursorFeedbackType";
+import { CursorManipulationType } from "../models/CursorManipulationType";
 
 export class WorkbenchApplication {
 	
 	private pixiApp: PIXI.Application = null;
 	private grid: Grid = null;
 
-	private drag: boolean = false;
+	private manipulationType: CursorManipulationType = CursorManipulationType.NONE;
+	private blockDragIndex: number = -1;
 	private globalScale: number = 1;
 	private scaleStep: number = 0.2;
-	// private screenOffset: PIXI.Point = new PIXI.Point();
 	private screenMatrix: PIXI.Matrix = new PIXI.Matrix();
 
-	private blocks: Array<NodeBlock> = [];
+	private blocks: Array<IRenderable> = [];
 	
 	InitWithPixi(pixiApp: PIXI.Application) {
 		this.pixiApp = pixiApp;
@@ -24,6 +27,7 @@ export class WorkbenchApplication {
 	onWindowResize(event: UIEvent) {
 		this.pixiApp.renderer.resize(window.innerWidth, window.innerHeight);
 		this.grid.Resize(window.innerWidth, window.innerHeight);
+		this.renderBlocks();
 	}
 
 	onMouseWheel(event: WheelEvent) {
@@ -44,38 +48,79 @@ export class WorkbenchApplication {
 		this.grid.Zoom(this.globalScale);
 		this.grid.Pan(screenOrigin.x, screenOrigin.y);
 
-		for (let bIndex = 0; bIndex < this.blocks.length; bIndex++) {
-			this.blocks[bIndex].DrawBlock(this.screenMatrix);
-		}
+		this.renderBlocks();
 	}
 
 	onMouseDown(event: MouseEvent) {
-		this.drag = true;
+		let cursorWorldPos = new PIXI.Point(event.offsetX, event.offsetY);
+		this.screenMatrix.applyInverse(cursorWorldPos, cursorWorldPos);
+		
+		for (let bIndex = 0; bIndex < this.blocks.length; bIndex++) {
+			switch(this.blocks[bIndex].ConsumeCursor(cursorWorldPos.x, cursorWorldPos.y)) {
+				case CursorFeedbackType.DRAGHIT:
+					this.manipulationType = CursorManipulationType.BLOCKDRAG;
+					this.blockDragIndex = bIndex;
+					break;
+				case CursorFeedbackType.LEFTSOCKETHIT:
+					console.log("leftSocket");
+					break;
+				case CursorFeedbackType.RIGHTSOCKETHIT:
+					console.log("rightSocket");
+					break;
+				case CursorFeedbackType.NONE:
+					this.manipulationType = CursorManipulationType.CANVASDRAG;
+					break;
+			}
+		}
 	}
 
 	onMouseUp(event: MouseEvent) {
-		this.drag = false;
+		this.manipulationType = CursorManipulationType.NONE;
 	}
 
 	onMouseMove(event: MouseEvent) {
-		if (this.drag) {
-			// movement in screen coords
-			this.screenMatrix.translate(event.movementX, event.movementY);
+		switch(this.manipulationType) {
+			case CursorManipulationType.CANVASDRAG:
+				// movement in screen coords
+				this.screenMatrix.translate(event.movementX, event.movementY);
 
-			let screenOrigin = new PIXI.Point();
-			this.screenMatrix.apply(screenOrigin, screenOrigin);
-			this.grid.Pan(screenOrigin.x, screenOrigin.y);
+				let screenOrigin = new PIXI.Point();
+				this.screenMatrix.apply(screenOrigin, screenOrigin);
+				this.grid.Pan(screenOrigin.x, screenOrigin.y);
 
-			for (let bIndex = 0; bIndex < this.blocks.length; bIndex++) {
-				this.blocks[bIndex].DrawBlock(this.screenMatrix);
-			}
+				this.renderBlocks();
+				break;
+			case CursorManipulationType.BLOCKDRAG:
+				let b = this.blocks[this.blockDragIndex].Boundaries;
+				this.blocks[this.blockDragIndex].Boundaries = new PIXI.Rectangle(
+					b.x + event.movementX / this.globalScale, 
+					b.y + event.movementY / this.globalScale, 
+					b.width, b.height
+				);
+				this.blocks[this.blockDragIndex].RenderBlock(this.screenMatrix);
+				break;
 		}
 	}
 
 	createFunctionBlock(model: ApplicationFunction, screenPos: PIXI.Point) {
 		let worldCursorPos = this.screenMatrix.applyInverse(screenPos);
-		let block = new NodeBlock(this.pixiApp.stage, new PIXI.Rectangle(worldCursorPos.x, worldCursorPos.y, 200, 100));
-		block.DrawBlock(this.screenMatrix);
+		let block = new NodeBlock(model, this.pixiApp.stage, new PIXI.Rectangle(worldCursorPos.x, worldCursorPos.y, 230, 100));
+		block.RenderBlock(this.screenMatrix);
 		this.blocks.push(block);
+	}
+
+	renderBlocks() {
+		for (let bIndex = 0; bIndex < this.blocks.length; bIndex++) {
+			// render check
+			let b = this.blocks[bIndex].Boundaries;
+			let leftTop = this.screenMatrix.apply(new PIXI.Point(b.x, b.y));
+			let rightBottom = this.screenMatrix.apply(new PIXI.Point(b.x + b.width, b.y + b.height));
+
+			//skip for out of screen area
+			if ( leftTop.x > window.innerWidth + 20 || leftTop.y > window.innerHeight + 20 ||
+				rightBottom.x < -20 || rightBottom.y < -20 ) continue;
+			
+			this.blocks[bIndex].RenderBlock(this.screenMatrix);
+		}
 	}
 }

@@ -7,7 +7,7 @@ export class Grid {
 	private stageW: number = 640;
 	private stageH: number = 480;
 
-	private majorLineStep: number = 50;
+	private majorLineStep: number = 200;
 	private subCellCount: number = 10;
 	private visibleStep: number = 10;
 	private globalScale: number = 1;

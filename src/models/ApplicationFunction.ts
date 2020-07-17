@@ -1,5 +1,6 @@
+import { IBlockModel } from "./IBlockModel";
 
-export class ApplicationFunction {
+export class ApplicationFunction implements IBlockModel {
 
-	displayName: string = "Function";
+	displayName: string = "Function_n1";
 }
