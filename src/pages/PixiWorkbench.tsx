@@ -3,18 +3,20 @@ import * as PIXI from "pixi.js";
 import { WorkbenchApplication } from "../pixi/WorkbenchApplication";
 import { OptionsPanel } from "../panels/OptionsPanel";
 import { ContextMenu } from "../panels/ContextMenu";
-import { TopPanel } from "../panels/TopPanel";
+import { TopWBPanel } from "../panels/TopWBPanel";
+import { ApplicationFunction } from "../models/ApplicationFunction";
 
 interface IState {
 	pixiApp: PIXI.Application,
 	workbenchApp: WorkbenchApplication,
 	screenDimensions: { width: number, height: number },
+	
 	contextMenuActive: boolean,
-	contextMenuPosition: { x: number, y: number }
+	contextMenuPosition: PIXI.Point
 }
 
 export class PixiWorkbench extends Component<{}, IState> {
-	
+
 	state = {
 		pixiApp: new PIXI.Application({ width: window.innerWidth, height: innerHeight }),
 		workbenchApp: new WorkbenchApplication(),
@@ -23,10 +25,11 @@ export class PixiWorkbench extends Component<{}, IState> {
 			height: window.innerHeight
 		},
 		contextMenuActive: false,
-		contextMenuPosition: { x: 0, y: 0 }
+		contextMenuPosition: new PIXI.Point()
 	};
 
 	workbench = React.createRef<HTMLDivElement>();
+	appFunctions = new Array<ApplicationFunction>();
 
 	componentDidMount() {
 		this.workbench.current.appendChild(this.state.pixiApp.view);
@@ -70,12 +73,16 @@ export class PixiWorkbench extends Component<{}, IState> {
 	}
 
 	onContextMenu(event: MouseEvent) {
-		this.state.workbenchApp.onContextMenu(event);
 		return false;
 	}
 
-	onContextMenuClick(info) {
+	onContextMenuClick(info: any) {
 		this.setState({ contextMenuActive: false });
+		switch(info.key) {
+			case "newFunc":
+				this.onNewFunctionCreate();
+				break;
+		}
 	}
 
 	onMouseWheel(event: WheelEvent) {
@@ -93,7 +100,7 @@ export class PixiWorkbench extends Component<{}, IState> {
 		if (event.button == 2) {
 			this.setState({
 				contextMenuActive: true,
-				contextMenuPosition: { x: event.clientX, y: event.clientY }
+				contextMenuPosition: new PIXI.Point(event.clientX, event.clientY)
 			});
 			return;
 		}
@@ -108,19 +115,25 @@ export class PixiWorkbench extends Component<{}, IState> {
 	onMouseMove(event: MouseEvent) {
 		this.state.workbenchApp.onMouseMove(event);
 	}
+
+	onNewFunctionCreate() {
+		let f = new ApplicationFunction();
+		this.state.workbenchApp.createFunctionBlock(f, this.state.contextMenuPosition);
+		this.appFunctions.push(f);
+	}
   
 	render() {
 		return (
 			<section id="PixiWorkbench">
 				<div id="CanvasHolder" ref={this.workbench}/>
-				<TopPanel />
-				<OptionsPanel functionNames={["asdasdas"]}/>
-				{ this.state.contextMenuActive && (
-					<ContextMenu 
-						onMenuClick={this.onContextMenuClick.bind(this)}
-						contextMenuPosition={this.state.contextMenuPosition}
-					/>
-				)}
+					<TopWBPanel />
+					{/* <OptionsPanel functionNames={["asdasdas"]}/> */}
+					{ this.state.contextMenuActive && (
+						<ContextMenu 
+							onMenuClick={this.onContextMenuClick.bind(this)}
+							contextMenuPosition={this.state.contextMenuPosition}
+						/>
+					)}
 			</section>
 		);
 	}

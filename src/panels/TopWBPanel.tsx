@@ -3,7 +3,7 @@ import { PageHeader, Breadcrumb, Collapse } from "antd";
 import { HomeOutlined, UserOutlined } from "@ant-design/icons";
 const { Panel } = Collapse;
 
-export class TopPanel extends Component<{}, {}> {
+export class TopWBPanel extends Component<{}, {}> {
 
 	render() {
 		return (
