@@ -12,7 +12,8 @@ interface IState {
 	screenDimensions: { width: number, height: number },
 	
 	contextMenuActive: boolean,
-	contextMenuPosition: PIXI.Point
+	contextMenuPosition: PIXI.Point,
+	contextMenuOptions: Array<{ name: string, key: string }>
 }
 
 export class PixiWorkbench extends Component<{}, IState> {
@@ -25,7 +26,8 @@ export class PixiWorkbench extends Component<{}, IState> {
 			height: window.innerHeight
 		},
 		contextMenuActive: false,
-		contextMenuPosition: new PIXI.Point()
+		contextMenuPosition: new PIXI.Point(),
+		contextMenuOptions: []
 	};
 
 	workbench = React.createRef<HTMLDivElement>();
@@ -98,9 +100,11 @@ export class PixiWorkbench extends Component<{}, IState> {
 		
 		//rbc
 		if (event.button == 2) {
+			var options = this.state.workbenchApp.onMouseRightDown(event);
 			this.setState({
 				contextMenuActive: true,
-				contextMenuPosition: new PIXI.Point(event.clientX, event.clientY)
+				contextMenuPosition: new PIXI.Point(event.clientX, event.clientY),
+				contextMenuOptions: options
 			});
 			return;
 		}

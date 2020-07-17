@@ -2,22 +2,21 @@ import * as PIXI from "pixi.js";
 import { Grid } from "./components/Grid";
 import { ApplicationFunction } from "../models/ApplicationFunction";
 import { NodeBlock } from "./components/NodeBlock";
-import { IRenderable } from "./components/IRenderable";
-import { CursorFeedbackType } from "../models/CursorFeedbackType";
-import { CursorManipulationType } from "../models/CursorManipulationType";
+import { IInteractionOperator } from "../models/interaction/IInteractionOperator";
+import { CanvasDragOperator } from "../models/interaction/CanvasDragOperator";
 
 export class WorkbenchApplication {
 	
 	private pixiApp: PIXI.Application = null;
 	private grid: Grid = null;
 
-	private manipulationType: CursorManipulationType = CursorManipulationType.NONE;
+	private interactionOperator: IInteractionOperator = null;
 	private blockDragIndex: number = -1;
 	private globalScale: number = 1;
 	private scaleStep: number = 0.2;
 	private screenMatrix: PIXI.Matrix = new PIXI.Matrix();
 
-	private blocks: Array<IRenderable> = [];
+	private blocks: Array<NodeBlock> = [];
 	
 	InitWithPixi(pixiApp: PIXI.Application) {
 		this.pixiApp = pixiApp;
@@ -56,49 +55,34 @@ export class WorkbenchApplication {
 		this.screenMatrix.applyInverse(cursorWorldPos, cursorWorldPos);
 		
 		for (let bIndex = 0; bIndex < this.blocks.length; bIndex++) {
-			switch(this.blocks[bIndex].ConsumeCursor(cursorWorldPos.x, cursorWorldPos.y)) {
-				case CursorFeedbackType.DRAGHIT:
-					this.manipulationType = CursorManipulationType.BLOCKDRAG;
-					this.blockDragIndex = bIndex;
-					break;
-				case CursorFeedbackType.LEFTSOCKETHIT:
-					console.log("leftSocket");
-					break;
-				case CursorFeedbackType.RIGHTSOCKETHIT:
-					console.log("rightSocket");
-					break;
-				case CursorFeedbackType.NONE:
-					this.manipulationType = CursorManipulationType.CANVASDRAG;
-					break;
+			this.interactionOperator = this.blocks[bIndex].ConsumeCursor(cursorWorldPos.x, cursorWorldPos.y);
+			if (this.interactionOperator != null) {
+				this.interactionOperator.screenMatrix = this.screenMatrix;
+				break;
 			}
+		}
+
+		if (this.interactionOperator == null) {
+			this.interactionOperator = new CanvasDragOperator(this.screenMatrix, this.grid);
 		}
 	}
 
+	onMouseRightDown(event: MouseEvent): Array<{ name: string, key: string }> {
+		return [];
+	}
+
 	onMouseUp(event: MouseEvent) {
-		this.manipulationType = CursorManipulationType.NONE;
+		if (this.interactionOperator != null) {
+			this.interactionOperator.Release(event.offsetX, event.offsetY);
+			this.interactionOperator = null;
+		}
 	}
 
 	onMouseMove(event: MouseEvent) {
-		switch(this.manipulationType) {
-			case CursorManipulationType.CANVASDRAG:
-				// movement in screen coords
-				this.screenMatrix.translate(event.movementX, event.movementY);
-
-				let screenOrigin = new PIXI.Point();
-				this.screenMatrix.apply(screenOrigin, screenOrigin);
-				this.grid.Pan(screenOrigin.x, screenOrigin.y);
-
+		if (this.interactionOperator != null) {
+			if (this.interactionOperator.AppendMouseMove(event.movementX, event.movementY, this.globalScale)) {
 				this.renderBlocks();
-				break;
-			case CursorManipulationType.BLOCKDRAG:
-				let b = this.blocks[this.blockDragIndex].Boundaries;
-				this.blocks[this.blockDragIndex].Boundaries = new PIXI.Rectangle(
-					b.x + event.movementX / this.globalScale, 
-					b.y + event.movementY / this.globalScale, 
-					b.width, b.height
-				);
-				this.blocks[this.blockDragIndex].RenderBlock(this.screenMatrix);
-				break;
+			}
 		}
 	}
 
@@ -112,7 +96,7 @@ export class WorkbenchApplication {
 	renderBlocks() {
 		for (let bIndex = 0; bIndex < this.blocks.length; bIndex++) {
 			// render check
-			let b = this.blocks[bIndex].Boundaries;
+			let b = this.blocks[bIndex].RenderBoundaries;
 			let leftTop = this.screenMatrix.apply(new PIXI.Point(b.x, b.y));
 			let rightBottom = this.screenMatrix.apply(new PIXI.Point(b.x + b.width, b.y + b.height));
 

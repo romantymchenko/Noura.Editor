@@ -1,7 +1,8 @@
 import * as PIXI from "pixi.js";
 import { IRenderable } from "./IRenderable";
 import { ApplicationFunction } from "../../models/ApplicationFunction";
-import { CursorFeedbackType } from "../../models/CursorFeedbackType";
+import { IInteractionOperator } from "../../models/interaction/IInteractionOperator";
+import { ElementDragOperator } from "../../models/interaction/ElementDragOperator";
 
 export class NodeBlock implements IRenderable {
 
@@ -32,12 +33,13 @@ export class NodeBlock implements IRenderable {
 		this.worldBoundaries = worldBoundaries;
 	}
 
-	get Boundaries() {
-		return this.worldBoundaries.clone();
+	get RenderBoundaries(): PIXI.Rectangle {
+		return this.worldBoundaries;
 	}
 
-	set Boundaries(val: PIXI.Rectangle) {
-		this.worldBoundaries.copyFrom(val);
+	Translate(worldOffsetX: number, worldOffsetY: number) {
+		this.worldBoundaries.x += worldOffsetX;
+		this.worldBoundaries.y += worldOffsetY;
 	}
 
 	RenderBlock(worldToScreen: PIXI.Matrix) {
@@ -83,23 +85,23 @@ export class NodeBlock implements IRenderable {
 		this.headerText.position.set(headerHeigth, headerHeigth / 4);
 	}
 
-	ConsumeCursor(cursorWorldX: number, cursorWorldY: number): CursorFeedbackType {
+	ConsumeCursor(cursorWorldX: number, cursorWorldY: number): IInteractionOperator {
 		// check for collision
 		if (!this.worldBoundaries.contains(cursorWorldX, cursorWorldY)) 
-			return CursorFeedbackType.NONE;
+			return null;
 		
 		let headerHeigth = this.worldBoundaries.height / 5;
 		let cursorPoint = new PIXI.Point(cursorWorldX - this.worldBoundaries.x, cursorWorldY - this.worldBoundaries.y);
 
-		if (Math.hypot(headerHeigth / 2 - cursorPoint.x, headerHeigth / 2 - cursorPoint.y) < headerHeigth / 3) {
-			return CursorFeedbackType.LEFTSOCKETHIT;
-		}
+		// if (Math.hypot(headerHeigth / 2 - cursorPoint.x, headerHeigth / 2 - cursorPoint.y) < headerHeigth / 3) {
+		// 	return CursorFeedbackType.LEFTSOCKETHIT;
+		// }
 
-		if (Math.hypot(this.worldBoundaries.width - headerHeigth / 2 - cursorPoint.x, headerHeigth / 2 - cursorPoint.y) < headerHeigth / 3) {
-			return CursorFeedbackType.RIGHTSOCKETHIT;
-		}
+		// if (Math.hypot(this.worldBoundaries.width - headerHeigth / 2 - cursorPoint.x, headerHeigth / 2 - cursorPoint.y) < headerHeigth / 3) {
+		// 	return CursorFeedbackType.RIGHTSOCKETHIT;
+		// }
 
-		return CursorFeedbackType.DRAGHIT;
+		return new ElementDragOperator(this);
 	}
 
 	Dispose() 
