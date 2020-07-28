@@ -1,8 +1,11 @@
 import * as PIXI from "pixi.js";
 import { IRenderable } from "./IRenderable";
 import { ApplicationFunction } from "../../models/ApplicationFunction";
-import { IInteractionOperator } from "../../models/interaction/IInteractionOperator";
-import { ElementDragOperator } from "../../models/interaction/ElementDragOperator";
+import { IInteractionOperator } from "../interaction/IInteractionOperator";
+import { ElementDragOperator } from "../interaction/ElementDragOperator";
+import { IInteractionHost } from "../interaction/IInteractionHost";
+import { WireConnectOperator } from "../interaction/WireConnectOperator";
+import { IBlocksHost } from "./IBlocksHost";
 
 export class NodeBlock implements IRenderable {
 
@@ -11,15 +14,21 @@ export class NodeBlock implements IRenderable {
 	private container: PIXI.Container = null;
 	private graphics: PIXI.Graphics = null;
 	private headerText: PIXI.Text = null;
+
+	private hovered: boolean = false;
 	private connectedFromLeft: boolean = false;
 	private connectedFromRight: boolean = false;
 
 	private worldBoundaries: PIXI.Rectangle = null;
-
+	//track prev. screen position to do not render on same spot twice
 	private screenPos: PIXI.Point = new PIXI.Point();
 	private screenBlockSize: PIXI.Point = new PIXI.Point();
 
-	constructor(model: ApplicationFunction, stage: PIXI.Container, worldBoundaries: PIXI.Rectangle) {
+	get RenderBoundaries(): PIXI.Rectangle {
+		return this.worldBoundaries;
+	}
+
+	constructor(model: ApplicationFunction, stage: PIXI.Container, width: number, height: number) {
 		
 		this.blockModel = model;
 
@@ -30,19 +39,16 @@ export class NodeBlock implements IRenderable {
 		this.container.addChild(this.headerText);
 
 		stage.addChild(this.container);
-		this.worldBoundaries = worldBoundaries;
+
+		this.worldBoundaries = new PIXI.Rectangle(0, 0, width, height);
 	}
 
-	get RenderBoundaries(): PIXI.Rectangle {
-		return this.worldBoundaries;
+	Translate(tx: number, ty: number) {
+		this.worldBoundaries.x += tx;
+		this.worldBoundaries.y += ty;
 	}
 
-	Translate(worldOffsetX: number, worldOffsetY: number) {
-		this.worldBoundaries.x += worldOffsetX;
-		this.worldBoundaries.y += worldOffsetY;
-	}
-
-	RenderBlock(worldToScreen: PIXI.Matrix) {
+	Render(worldToScreen: PIXI.Matrix) {
 
 		let screenPos = new PIXI.Point(this.worldBoundaries.x, this.worldBoundaries.y);
 		worldToScreen.apply(screenPos, screenPos);
@@ -66,11 +72,10 @@ export class NodeBlock implements IRenderable {
 
 	private DrawBlock() {
 		// redraw
-		this.graphics.clear();
 		this.container.position.set(this.screenPos.x, this.screenPos.y);
 		
-		this.graphics.beginFill(0x000000, 0.9).lineStyle(2, 0xffffff)
-			.drawRoundedRect(0, 0, this.screenBlockSize.x, this. screenBlockSize.y, 2).endFill();
+		this.graphics.clear().beginFill(0x000000, 0.9).lineStyle(this.hovered ? 3 : 2, 0xffffff)
+			.drawRoundedRect(0, 0, this.screenBlockSize.x, this. screenBlockSize.y, this.hovered ? 4 : 3).endFill();
 		
 		let headerHeigth = this.screenBlockSize.y / 5;
 
@@ -85,23 +90,45 @@ export class NodeBlock implements IRenderable {
 		this.headerText.position.set(headerHeigth, headerHeigth / 4);
 	}
 
-	ConsumeCursor(cursorWorldX: number, cursorWorldY: number): IInteractionOperator {
-		// check for collision
-		if (!this.worldBoundaries.contains(cursorWorldX, cursorWorldY)) 
-			return null;
+	ApplyInteraction(cursorWorld: PIXI.Point, appHost: IBlocksHost): IInteractionOperator {
 		
 		let headerHeigth = this.worldBoundaries.height / 5;
-		let cursorPoint = new PIXI.Point(cursorWorldX - this.worldBoundaries.x, cursorWorldY - this.worldBoundaries.y);
+		let cursorObjectPoint = new PIXI.Point(cursorWorld.x - this.worldBoundaries.x, cursorWorld.y - this.worldBoundaries.y);
 
-		// if (Math.hypot(headerHeigth / 2 - cursorPoint.x, headerHeigth / 2 - cursorPoint.y) < headerHeigth / 3) {
-		// 	return CursorFeedbackType.LEFTSOCKETHIT;
-		// }
+		if (Math.hypot(headerHeigth / 2 - cursorObjectPoint.x, headerHeigth / 2 - cursorObjectPoint.y) < headerHeigth / 3) {
+			// left socket
+			//appHostRefs.interactionOperator = new WireConnectOperator(appHostRefs.stageContainer, appHostRefs.screenMatrix, cursorWorld, false);
+		}
+		else if (Math.hypot(this.worldBoundaries.width - headerHeigth / 2 - cursorObjectPoint.x, headerHeigth / 2 - cursorObjectPoint.y) < headerHeigth / 3) {
+			// right socket
+			//appHostRefs.interactionOperator = new WireConnectOperator(appHostRefs.stageContainer, appHostRefs.screenMatrix, cursorWorld, true);
+		}
+		else {
+			return new ElementDragOperator(this, appHost.WorldToScreen);
+		}
+	}
 
-		// if (Math.hypot(this.worldBoundaries.width - headerHeigth / 2 - cursorPoint.x, headerHeigth / 2 - cursorPoint.y) < headerHeigth / 3) {
-		// 	return CursorFeedbackType.RIGHTSOCKETHIT;
-		// }
+	GetContextMenuOptions(): Array<{ name: string, key: string }> {
+		let options = new Array<{ name: string, key: string }>();
+		options.push({ name: "Delete " + this.blockModel.displayName, key: "removeFunc" });
+		
+		if (this.connectedFromLeft)
+			options.push({ name: "Disconnect from left", key: "removeLConn" });
+		
+		if (this.connectedFromRight)
+			options.push({ name: "Disconnect from right", key: "removeRConn" });
+		
+		return options;
+	}
 
-		return new ElementDragOperator(this);
+	OnCursorHower(cursorWorld: PIXI.Point) {
+		this.hovered = true;
+		this.DrawBlock();
+	}
+
+	OnCursorLeave() {
+		this.hovered = false;
+		this.DrawBlock();
 	}
 
 	Dispose() 

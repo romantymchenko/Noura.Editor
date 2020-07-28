@@ -4,8 +4,9 @@ import { MailOutlined, AppstoreOutlined, SettingOutlined } from '@ant-design/ico
 const { SubMenu } = Menu;
 
 interface IProps {
-	contextMenuPosition: { x: number, y: number }
-	onMenuClick: (info: any) => void;
+	contextMenuPosition: { x: number, y: number },
+	onMenuClick: (info: any) => void,
+	contextMenuOptions: Array<{ name: string, key: string }>
 }
 
 export class ContextMenu extends Component<IProps, {}> {
@@ -18,8 +19,15 @@ export class ContextMenu extends Component<IProps, {}> {
 				top: this.props.contextMenuPosition.y 
 			}}>
 				<Menu onClick={this.props.onMenuClick} style={{ width: 150 }} mode="vertical">
+					{ this.props.contextMenuOptions.length > 0 && (
+						<SubMenu key="edit" title="Edit">
+							{ this.props.contextMenuOptions.map( item => (
+								<Menu.Item key={item.key}>{item.name}</Menu.Item>
+							)) }
+						</SubMenu>
+					)}
 					<SubMenu key="create" title="Create">
-						<Menu.Item key="newFunc">New Function</Menu.Item>
+						<Menu.Item key="newFunc">Function</Menu.Item>
 					</SubMenu>
 				</Menu>
 			</div>
